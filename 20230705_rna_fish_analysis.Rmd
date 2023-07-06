@@ -1,0 +1,155 @@
+---
+title: "20230705_rna_fish_analysis"
+author: "Justin Savage"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load packages}
+library(tidyverse)
+library(stringr)
+library(ggplot2)
+library(reshape)
+library(car)
+library(agricolae)
+library(lme4)
+library(nlme)
+require(multcomp)
+library(rstudioapi)
+```
+
+```{r load data}
+
+source_folder <- "D:/Bel/2023/2023 RNA-FISH/Combined/Combined_Channels/Overlays"
+
+#get list of folders in the source folder (recursive = FALSE prevents R from including the original folder in the list)
+dir_list <- list.dirs(path = source_folder, recursive = FALSE)
+
+for (i in 1:length(dir_list)){
+  
+  current_dir <- dir_list[i]
+  current_file_list <- list.files(path = current_dir, pattern = "*.csv")
+  #assumes the file to be analyzed is the first csv file it finds (should only be one per folder)
+  current_csv <- current_file_list[1]
+  #print(current_csv)
+  
+  #open the current csv
+  current_data <- read.csv(paste(current_dir, current_csv, sep = "/"))
+  
+  #label data with section and layer
+  ##TODO: this can only take 5 sections
+  current_data$Section <- 0
+  if(grepl("Section 1", current_dir)){
+    current_data$Section <- 1
+  }
+  
+  if(grepl("Section 2", current_dir)){
+    current_data$Section <- 2
+  }
+  
+  if(grepl("Section 3", current_dir)){
+    current_data$Section <- 3
+  }
+  
+  if(grepl("Section 4", current_dir)){
+    current_data$Section <- 4
+  }
+  
+  if(grepl("Section 5", current_dir)){
+    current_data$Section <- 5
+  }
+  
+  current_data$Layer <- "0"
+  if(grepl("L1", current_dir)){
+    current_data$Layer <- "1"
+  }
+  if(grepl("L2-3", current_dir)){
+    current_data$Layer <- "23"
+  }
+  if(grepl("L4", current_dir)){
+    current_data$Layer <- "4"
+  }
+  if(grepl("L5", current_dir)){
+    current_data$Layer <- "5"
+  }
+  if(grepl("L6", current_dir)){
+    current_data$Layer <- "6"
+  }
+  
+  #label data with timepoint
+  current_data$timepoint <- "P1"
+  if(grepl("P1", current_dir)){
+    current_data$timepoint <- "P1"
+  }
+  if(grepl("P7", current_dir)){
+    current_data$timepoint <- "P7"
+  }
+  if(grepl("P14", current_dir)){
+    current_data$timepoint <- "P14"
+  }
+  if(grepl("P21", current_dir)){
+    current_data$timepoint <- "P21"
+  }
+  
+  ##TODO: set number only goes up to 5
+  #Add animal number (called Set 1, Set 2, or Set 3 in file names)
+  current_data$Animal <- 0
+  if(grepl("Set 1", current_dir)){
+    current_data$Animal <- 1
+  }
+  if(grepl("Set 2", current_dir)){
+    current_data$Animal <- 2
+  }
+  if(grepl("Set 3", current_dir)){
+    current_data$Animal <- 3
+  }
+  if(grepl("Set 4", current_dir)){
+    current_data$Animal <- 4
+  }
+  if(grepl("Set 5", current_dir)){
+    current_data$Animal <- 5
+  }
+  
+  #combine all data together
+  if (i == 1){
+    combined_data <- current_data
+  }
+  if (i != 1){
+    combined_data <- rbind(combined_data, current_data)
+  }
+}
+
+
+#calculate C4/C3 ratio
+#first I will separate C3 from C4
+  
+combined_c3_data <- combined_data[which(grepl("C3", combined_data$Label)),]
+combined_c4_data <- combined_data[which(grepl("C4", combined_data$Label)),]
+
+#make sure that there is a C3 for each C4
+if(length(combined_c3_data) == length(combined_c4_data)){
+  print("C3 and C4 lengths match")
+}
+if(length(combined_c3_data) != length(combined_c4_data)){
+  print("C3 and C4 lengths do not match")
+}
+
+for (i in 1:length(combined_c3_data)){
+  #calculate C4/C3 ratio
+  combined_c3_data$C3_area <- combined_c3_data$Area
+  combined_c3_data$C4_area <- combined_c4_data$Area
+  combined_c3_data$C4_to_C3_Ratio <- combined_c3_data$C4_area/combined_c3_data$C3_area
+}
+
+combined_c3_data <- arrange(combined_c3_data, timepoint, Layer, Animal, Section)
+
+write.csv(combined_c3_data, file = "230706_RNA-FISH_output.csv")
+
+print("done")
+
+
+```
